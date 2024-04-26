@@ -1,0 +1,90 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const axios = require("axios");
+const { NlpManager } = require("node-nlp"); 
+
+const app = express();
+const port = 3000;
+
+// Replace these placeholders with your actual URLs and token
+const pickyAssistConnectorUrl = "https://pickyassist.com/app/url/82c49d7ae920ba2b483cc180adda1b489fda1cd9";
+const pushApiUrl = "https://pickyassist.com/app/api/v2/push";
+const token = "f26a55c16c20a0a9b9b3e50147c400d10b17f78b"; // Replace with your actual token
+
+app.use(express.json());
+app.use(express.urlencoded({extended:true}))
+
+app.post("/", async (req, res) => {
+
+    console.log(req.body)
+    try {
+       
+        // Extract necessary information from the webhook event
+        const msg = req.body.message;
+        console.log("msg from picky",msg)
+        const number="num";
+        console.log("msg :", msg);
+
+        // Check if message and number are present in the webhook event
+        if (msg  && number) {
+            // Your existing logic here
+            const response = await manager.process("en", msg);
+            await sendMessageToPickyAssist(number, msg);
+            await sendResponseToUser(number, msg);
+            return res.json({"Report file":"This is your file "});
+        } else {
+            console.error("Invalid message:", msg);
+            // Respond with an error
+            throw new Error("Invalid message or number");
+        }
+    } catch (error) {
+        console.error("Error handling webhook event:", error.msg);
+        throw error;
+    }
+});
+
+
+// Function to send message to Picky Assist
+async function sendMessageToPickyAssist(to, text) {
+    try {
+        const response = await axios.post(pickyAssistConnectorUrl, {
+            token,
+            application: 10, // WhatsApp Web Automation
+            data: [{
+                number: to,
+                message: text
+            }]
+        });
+        console.log("Message sent successfully to Picky Assist:", response.data);
+    } catch (error) {
+        console.error("Error sending message to Picky Assist:", error.message);
+        throw error;
+    }
+}
+
+// Function to send response to user
+async function sendResponseToUser(userNumber, message) {
+    try {
+        console.log("Sending response to user:", message);
+        //message="Hello chatBot";
+        const pushMessage = {
+            token,
+            application: 10, // WhatsApp Web Automation
+            data: [{
+                number: userNumber,
+                message
+            }]
+        };
+        const pushApiResponse = await axios.post(pushApiUrl, pushMessage);
+        console.log("Response sent to user successfully using Push API:", pushApiResponse.data);
+    } catch (error) {
+        console.error("Error sending response to user using Push API:", error.message);
+        throw error;
+    }
+}
+
+// Route to handle incoming webhook events
+
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+});
